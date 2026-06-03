@@ -49,6 +49,17 @@ export interface HistoryEvent {
   created_at: string;
 }
 
+/** A piece of the "clone database" the AI uses to draft replies. */
+export type KnowledgeKind = "fact" | "style" | "faq" | "person" | "policy";
+
+export interface Knowledge {
+  id: string;
+  kind: KnowledgeKind;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
 /** Shape returned by /api/refresh. */
 export interface RefreshResult {
   tasksAdded: number;

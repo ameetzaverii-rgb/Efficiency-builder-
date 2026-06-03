@@ -14,6 +14,8 @@ import type {
   Email,
   EmailStatus,
   HistoryEvent,
+  Knowledge,
+  KnowledgeKind,
   Priority,
   Task,
   TaskStatus,
@@ -262,4 +264,76 @@ export async function getHistory(): Promise<HistoryEvent[]> {
     return r.ok ? r.json() : [];
   }
   return read<HistoryEvent[]>(HISTORY_KEY, []);
+}
+
+// ---- AI reply drafting ----------------------------------------------------
+
+/** Ask the AI to draft a reply to an email. Online mode only. */
+export async function draftReply(
+  emailId: string,
+  instruction?: string
+): Promise<string> {
+  if (!(await hasBackend())) {
+    throw new Error(
+      "Drafting needs the live database + Anthropic key (connect Supabase & ANTHROPIC_API_KEY in Vercel)."
+    );
+  }
+  const r = await fetch("/api/draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ emailId, instruction }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Draft failed");
+  return data.draft as string;
+}
+
+/** Log a decision (Delegate / Defer / etc.) to the timeline. */
+export async function logDecision(input: {
+  entityId?: string;
+  entityTitle?: string;
+  decision: string;
+  reason?: string;
+}): Promise<void> {
+  if (!(await hasBackend())) {
+    logLocal(`decision_${input.decision}`, input.entityId ?? null, input.entityTitle ?? null);
+    return;
+  }
+  await fetch("/api/decisions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+// ---- Knowledge base -------------------------------------------------------
+
+export async function getKnowledge(): Promise<Knowledge[]> {
+  if (await hasBackend()) {
+    const r = await fetch("/api/knowledge");
+    return r.ok ? r.json() : [];
+  }
+  return [];
+}
+
+export async function addKnowledge(input: {
+  kind: KnowledgeKind;
+  title: string;
+  content: string;
+}): Promise<void> {
+  if (!(await hasBackend())) {
+    throw new Error("Knowledge base needs the live database.");
+  }
+  await fetch("/api/knowledge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteKnowledge(id: string): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch(`/api/knowledge?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

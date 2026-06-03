@@ -8,6 +8,10 @@ const LABELS: Record<string, string> = {
   task_deleted: "Task deleted",
   email_replied: "Email replied",
   email_dismissed: "Email dismissed",
+  email_drafted: "AI reply drafted",
+  decision_delegate: "Delegated",
+  decision_defer: "Deferred",
+  seed: "Loaded starter data",
   refresh: "M365 sync",
   refresh_failed: "M365 sync failed",
 };
