@@ -1,4 +1,5 @@
-import { createBrowserClient, createServerClient } from "@supabase/ssr";
+import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Browser-side Supabase client. Uses the public anon key — safe to ship to the
@@ -24,23 +25,19 @@ export function getBrowserClient() {
  * role rather than a user session.
  */
 export function getServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceKey) {
+  if (!rawUrl || !serviceKey) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
     );
   }
 
-  return createServerClient(url, serviceKey, {
-    cookies: {
-      getAll() {
-        return [];
-      },
-      setAll() {
-        /* no-op: service-role client is not session-bound */
-      },
-    },
+  // Tolerate a URL that was pasted with a trailing slash or /rest/v1 suffix.
+  const url = rawUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
