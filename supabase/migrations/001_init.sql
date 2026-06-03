@@ -44,3 +44,10 @@ create table if not exists history (
 create index if not exists idx_tasks_status on tasks (status);
 create index if not exists idx_emails_status on emails (status);
 create index if not exists idx_history_created_at on history (created_at desc);
+
+-- Privacy: lock the tables down. The app talks to Supabase only through the
+-- server-side service-role key (which bypasses RLS), so turning RLS on with no
+-- public policies means nobody can read this data with the public/anon key.
+alter table tasks   enable row level security;
+alter table emails  enable row level security;
+alter table history enable row level security;
