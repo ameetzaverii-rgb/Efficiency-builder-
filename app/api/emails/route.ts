@@ -3,15 +3,28 @@ import { getServerClient } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/emails — pending emails, newest received first. */
-export async function GET() {
+/**
+ * GET /api/emails — newest received first.
+ *   ?status=pending  (default) — still needs attention
+ *   ?status=handled            — replied or dismissed (to review drafts)
+ *   ?status=all                — everything
+ */
+export async function GET(req: NextRequest) {
   const supabase = getServerClient();
-  const { data, error } = await supabase
+  const status = req.nextUrl.searchParams.get("status") ?? "pending";
+
+  let query = supabase
     .from("emails")
     .select("*")
-    .eq("status", "pending")
     .order("received_date", { ascending: false });
 
+  if (status === "pending") {
+    query = query.eq("status", "pending");
+  } else if (status === "handled") {
+    query = query.in("status", ["replied", "dismissed"]);
+  } // "all" → no status filter
+
+  const { data, error } = await query;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

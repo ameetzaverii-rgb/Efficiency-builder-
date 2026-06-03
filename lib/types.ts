@@ -49,6 +49,21 @@ export interface HistoryEvent {
   created_at: string;
 }
 
+/** Partnership pipeline. */
+export type DealStage = "exploring" | "negotiating" | "live" | "paused";
+
+export interface Deal {
+  id: string;
+  name: string;
+  partner: string | null;
+  stage: DealStage;
+  value: string | null;
+  note: string | null;
+  next_step: string | null;
+  last_touch: string | null;
+  created_at: string;
+}
+
 /** A piece of the "clone database" the AI uses to draft replies. */
 export type KnowledgeKind = "fact" | "style" | "faq" | "person" | "policy";
 

@@ -234,6 +234,15 @@ export async function getEmails(): Promise<Email[]> {
   return read<Email[]>(EMAILS_KEY, []).filter((e) => e.status === "pending");
 }
 
+/** Replied or dismissed emails — so you can review the AI drafts you generated. */
+export async function getHandledEmails(): Promise<Email[]> {
+  if (await hasBackend()) {
+    const r = await fetch("/api/emails?status=handled");
+    return r.ok ? r.json() : [];
+  }
+  return read<Email[]>(EMAILS_KEY, []).filter((e) => e.status !== "pending");
+}
+
 export async function setEmailStatus(
   id: string,
   status: EmailStatus
