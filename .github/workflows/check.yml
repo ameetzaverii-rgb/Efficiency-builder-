@@ -1,0 +1,26 @@
+name: Check live site
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe homepage
+        run: |
+          echo "Homepage:"
+          curl -s -o /dev/null -w "  HTTP %{http_code}\n" https://efficiency-builder.vercel.app
+      - name: Probe /api/tasks
+        run: |
+          echo "GET /api/tasks ->"
+          code=$(curl -s -o body.txt -w "%{http_code}" https://efficiency-builder.vercel.app/api/tasks)
+          echo "  HTTP $code"
+          echo "  Body (first 800 chars):"
+          head -c 800 body.txt; echo
+      - name: Probe /api/emails
+        run: |
+          echo "GET /api/emails ->"
+          code=$(curl -s -o e.txt -w "%{http_code}" https://efficiency-builder.vercel.app/api/emails)
+          echo "  HTTP $code"
+          head -c 400 e.txt; echo
