@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Priority, Task } from "@/lib/types";
+import { addTask, deleteTask, setTaskStatus } from "@/lib/store";
 
 const PRIORITIES: Priority[] = ["urgent", "high", "medium", "low"];
 
@@ -21,35 +22,25 @@ export default function TasksTab({
 }) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Priority>("high");
-  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const addTask = async () => {
+  const submit = async () => {
     if (!title.trim()) return;
-    setAdding(true);
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), priority }),
-    });
+    setBusy(true);
+    await addTask({ title: title.trim(), priority });
     setTitle("");
     setPriority("high");
-    setAdding(false);
+    setBusy(false);
     onChanged();
   };
 
   const markDone = async (id: string) => {
-    await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: "done" }),
-    });
+    await setTaskStatus(id, "done");
     onChanged();
   };
 
   const remove = async (id: string) => {
-    await fetch(`/api/tasks?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    await deleteTask(id);
     onChanged();
   };
 
@@ -59,7 +50,7 @@ export default function TasksTab({
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addTask()}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="Add a task…"
           className="min-w-[200px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-ink"
         />
@@ -75,8 +66,8 @@ export default function TasksTab({
           ))}
         </select>
         <button
-          onClick={addTask}
-          disabled={adding}
+          onClick={submit}
+          disabled={busy}
           className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           + Add task

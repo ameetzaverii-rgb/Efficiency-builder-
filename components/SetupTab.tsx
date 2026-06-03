@@ -1,46 +1,43 @@
 "use client";
 
-const STEPS: { title: string; body: string }[] = [
-  {
-    title: "1 · Supabase",
-    body: "Create a project (Mumbai / ap-south-1), run supabase/migrations/001_init.sql in the SQL editor, then copy the Project URL, anon key and service-role key into your env vars.",
-  },
-  {
-    title: "2 · Microsoft 365",
-    body: "Register an app in Azure AD, add the delegated Graph permissions (Mail.Read, Mail.ReadWrite, Tasks.Read, Tasks.ReadWrite, User.Read), grant admin consent, then store the client ID / secret / tenant ID and a refresh token.",
-  },
-  {
-    title: "3 · Vercel",
-    body: "Deploy with `vercel`, add every env var (Production + Preview + Development), connect the GitHub repo for auto-deploy, and confirm vercel.json's 8am IST cron is picked up.",
-  },
-  {
-    title: "4 · Power Automate (optional)",
-    body: "Add a daily 8am recurrence that does an HTTP GET to /api/refresh with `Authorization: Bearer <CRON_SECRET>` as a second trigger path.",
-  },
-];
-
-export default function SetupTab() {
+export default function SetupTab({ online }: { online: boolean | null }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        This dashboard is data-driven from Supabase and synced from Microsoft
-        365. Work through these once and the 8am cron keeps it current.
-      </p>
-      <ul className="space-y-3">
-        {STEPS.map((s) => (
-          <li
-            key={s.title}
-            className="rounded-lg border border-slate-200 bg-white p-4"
-          >
-            <h3 className="font-semibold">{s.title}</h3>
-            <p className="mt-1 text-sm text-slate-600">{s.body}</p>
+      <div
+        className={`rounded-lg border p-4 ${
+          online
+            ? "border-green-200 bg-green-50"
+            : "border-slate-200 bg-white"
+        }`}
+      >
+        <h3 className="font-semibold">
+          {online ? "✅ Connected to your database" : "💾 Saving on this device"}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600">
+          {online
+            ? "Your tasks and emails are stored in Supabase and sync everywhere you sign in."
+            : "Right now your tasks save in this browser — no setup needed, it just works. They stay here on this device. Want them to follow you across phone and laptop, or to pull in real Outlook emails? Those upgrades are optional and can be added later."}
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <h3 className="font-semibold">Optional upgrades (later, no rush)</h3>
+        <ul className="mt-2 space-y-2 text-sm text-slate-600">
+          <li>
+            <span className="font-medium">Sync across devices</span> — connect a
+            free Supabase database so the same list shows on every device.
           </li>
-        ))}
-      </ul>
-      <p className="text-xs text-slate-400">
-        Full instructions live in README.md. Endpoints: /api/refresh (sync),
-        /api/webhook (Power Automate push).
-      </p>
+          <li>
+            <span className="font-medium">Real emails &amp; tasks</span> —
+            connect Microsoft 365 to automatically pull in your flagged Outlook
+            emails and To&nbsp;Do tasks every morning.
+          </li>
+        </ul>
+        <p className="mt-3 text-xs text-slate-400">
+          Full instructions live in the project README. You don&apos;t need any
+          of this to use the dashboard today.
+        </p>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Email, EmailStatus } from "@/lib/types";
+import { setEmailStatus } from "@/lib/store";
 
 export default function EmailsTab({
   emails,
@@ -13,11 +14,7 @@ export default function EmailsTab({
   const [openId, setOpenId] = useState<string | null>(null);
 
   const setStatus = async (id: string, status: EmailStatus) => {
-    await fetch("/api/emails", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    });
+    await setEmailStatus(id, status);
     onChanged();
   };
 

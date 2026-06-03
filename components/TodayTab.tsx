@@ -1,6 +1,7 @@
 "use client";
 
 import type { Email, Task } from "@/lib/types";
+import { setEmailStatus, setTaskStatus } from "@/lib/store";
 
 const PRIORITY_RANK: Record<string, number> = {
   urgent: 0,
@@ -26,20 +27,12 @@ export default function TodayTab({
     .slice(0, 5);
 
   const markDone = async (id: string) => {
-    await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: "done" }),
-    });
+    await setTaskStatus(id, "done");
     onChanged();
   };
 
   const markReplied = async (id: string) => {
-    await fetch("/api/emails", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: "replied" }),
-    });
+    await setEmailStatus(id, "replied");
     onChanged();
   };
 
