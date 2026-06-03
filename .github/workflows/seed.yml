@@ -1,0 +1,27 @@
+name: Seed database
+
+on:
+  workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: "Supabase Project URL (e.g. https://xxxx.supabase.co)"
+        required: true
+      supabase_key:
+        description: "Supabase secret / service_role key"
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mask secret in logs
+        run: echo "::add-mask::${{ inputs.supabase_key }}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Load starter data into Supabase
+        run: node scripts/seed.mjs
+        env:
+          SUPABASE_URL: ${{ inputs.supabase_url }}
+          SUPABASE_KEY: ${{ inputs.supabase_key }}
