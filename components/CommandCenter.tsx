@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Email, HistoryEvent, Task } from "@/lib/types";
-import { getEmails, getHistory, getTasks, isOnline } from "@/lib/store";
+import { getAiStatus, getEmails, getHistory, getTasks, isOnline } from "@/lib/store";
 import TodayTab from "./TodayTab";
 import TasksTab from "./TasksTab";
 import EmailsTab from "./EmailsTab";
 import PipelineTab from "./PipelineTab";
+import TrackersTab from "./TrackersTab";
 import HistoryTab from "./HistoryTab";
 import KnowledgeTab from "./KnowledgeTab";
 import SetupTab from "./SetupTab";
@@ -16,6 +17,7 @@ type TabKey =
   | "tasks"
   | "emails"
   | "pipeline"
+  | "trackers"
   | "knowledge"
   | "history"
   | "setup";
@@ -25,10 +27,17 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "tasks", label: "Tasks" },
   { key: "emails", label: "Emails" },
   { key: "pipeline", label: "Pipeline" },
+  { key: "trackers", label: "Trackers" },
   { key: "knowledge", label: "Knowledge" },
   { key: "history", label: "History" },
   { key: "setup", label: "Setup" },
 ];
+
+const AI_LABEL: Record<string, { text: string; cls: string }> = {
+  gemini: { text: "AI: Gemini ✓", cls: "bg-green-100 text-green-700" },
+  anthropic: { text: "AI: Claude ✓", cls: "bg-green-100 text-green-700" },
+  none: { text: "AI: not connected", cls: "bg-amber-100 text-amber-700" },
+};
 
 export default function CommandCenter() {
   const [tab, setTab] = useState<TabKey>("today");
@@ -37,6 +46,11 @@ export default function CommandCenter() {
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState<boolean | null>(null);
+  const [ai, setAi] = useState<string>("none");
+
+  useEffect(() => {
+    getAiStatus().then(setAi);
+  }, []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -64,6 +78,20 @@ export default function CommandCenter() {
           <div>
             <h1 className="text-xl font-semibold">GSL Command Center</h1>
             <p className="text-sm text-slate-500">GSL Innovation Factory</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                online ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {online ? "Database ✓" : "Local mode"}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${(AI_LABEL[ai] ?? AI_LABEL.none).cls}`}
+            >
+              {(AI_LABEL[ai] ?? AI_LABEL.none).text}
+            </span>
           </div>
         </div>
         <nav className="mx-auto flex max-w-5xl gap-1 px-2">
@@ -96,6 +124,7 @@ export default function CommandCenter() {
               <EmailsTab emails={emails} onChanged={loadAll} />
             )}
             {tab === "pipeline" && <PipelineTab />}
+            {tab === "trackers" && <TrackersTab />}
             {tab === "knowledge" && <KnowledgeTab />}
             {tab === "history" && <HistoryTab history={history} />}
             {tab === "setup" && <SetupTab online={online} />}

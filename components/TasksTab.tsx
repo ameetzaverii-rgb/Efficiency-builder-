@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Priority, Task } from "@/lib/types";
 import { addTask, deleteTask, setTaskStatus } from "@/lib/store";
+import DelegatePanel from "./DelegatePanel";
 
 const PRIORITIES: Priority[] = ["urgent", "high", "medium", "low"];
 
@@ -81,37 +82,42 @@ export default function TasksTab({
           {tasks.map((t) => (
             <li
               key={t.id}
-              className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-3"
+              className="rounded-lg border border-slate-200 bg-white p-3"
             >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE[t.priority]}`}
-                  >
-                    {t.priority}
-                  </span>
-                  <p className="font-medium">{t.title}</p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE[t.priority]}`}
+                    >
+                      {t.priority}
+                    </span>
+                    <p className="font-medium">{t.title}</p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t.project} · added {t.added_date}
+                  </p>
+                  {t.note && (
+                    <p className="mt-1 text-sm text-slate-600">{t.note}</p>
+                  )}
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  {t.project} · added {t.added_date}
-                </p>
-                {t.note && (
-                  <p className="mt-1 text-sm text-slate-600">{t.note}</p>
-                )}
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => markDone(t.id)}
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
+                  >
+                    Done
+                  </button>
+                  <button
+                    onClick={() => remove(t.id)}
+                    className="rounded-md border border-slate-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  onClick={() => markDone(t.id)}
-                  className="rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
-                >
-                  Done
-                </button>
-                <button
-                  onClick={() => remove(t.id)}
-                  className="rounded-md border border-slate-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                >
-                  Delete
-                </button>
+              <div className="mt-2">
+                <DelegatePanel entityType="task" entityId={t.id} />
               </div>
             </li>
           ))}

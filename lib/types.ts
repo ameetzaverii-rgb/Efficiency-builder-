@@ -82,6 +82,18 @@ export interface RefreshResult {
   timestamp: string;
 }
 
+/** External client/data trackers surfaced in the command center. */
+export type TrackerType = "sharepoint" | "appsscript" | "sheet" | "link";
+
+export interface Tracker {
+  id: string;
+  title: string;
+  url: string;
+  type: TrackerType;
+  note: string | null;
+  created_at: string;
+}
+
 /** A perspective/input on a decision, accumulated over time. */
 export interface Viewpoint {
   id: string;
@@ -96,6 +108,8 @@ export interface Viewpoint {
 export interface Insight {
   decision_required: string;
   context: string;
+  /** Concrete choices presented multiple-choice style (empty if no decision needed). */
+  decision_options: { option: string; implication: string; recommended: boolean }[];
   considerations: { angle: string; point: string }[];
   risks: string[];
   recommendation: string;

@@ -8,6 +8,7 @@ import {
   deleteViewpoint,
   getInsight,
   getViewpoints,
+  logDecision,
 } from "@/lib/store";
 
 const CONF_BADGE: Record<string, string> = {
@@ -19,10 +20,13 @@ const CONF_BADGE: Record<string, string> = {
 export default function IntelligencePanel({
   entityType,
   entityId,
+  entityTitle,
 }: {
-  entityType: "email" | "task" | "deal";
+  entityType: "email" | "task" | "deal" | "tracker";
   entityId: string;
+  entityTitle?: string;
 }) {
+  const [chosen, setChosen] = useState<string | null>(null);
   const [insight, setInsight] = useState<Insight | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [viewpoints, setViewpoints] = useState<Viewpoint[]>([]);
@@ -115,6 +119,58 @@ export default function IntelligencePanel({
             </p>
             <p className="text-slate-700">{insight.context}</p>
           </div>
+
+          {insight.decision_options?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-400">
+                Choose a decision
+              </p>
+              <div className="mt-1 space-y-1.5">
+                {insight.decision_options.map((o, i) => {
+                  const isChosen = chosen === o.option;
+                  return (
+                    <button
+                      key={i}
+                      onClick={async () => {
+                        setChosen(o.option);
+                        await logDecision({
+                          entityId,
+                          entityTitle,
+                          decision: "chose",
+                          reason: o.option,
+                        });
+                      }}
+                      className={`block w-full rounded-md border p-2 text-left text-sm transition ${
+                        isChosen
+                          ? "border-indigo-500 bg-indigo-100"
+                          : o.recommended
+                          ? "border-green-300 bg-green-50 hover:bg-green-100"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="font-medium">
+                        {String.fromCharCode(65 + i)}. {o.option}
+                      </span>
+                      {o.recommended && (
+                        <span className="ml-2 rounded bg-green-200 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
+                          recommended
+                        </span>
+                      )}
+                      {isChosen && (
+                        <span className="ml-2 text-xs text-indigo-700">
+                          ✓ chosen
+                        </span>
+                      )}
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {o.implication}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {insight.considerations?.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase text-slate-400">

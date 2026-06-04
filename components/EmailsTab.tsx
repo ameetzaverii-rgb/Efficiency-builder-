@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { Email, EmailStatus } from "@/lib/types";
 import {
   draftReply,
+  getAnalyzedIds,
   getHandledEmails,
   logDecision,
   setEmailStatus,
 } from "@/lib/store";
 import IntelligencePanel from "./IntelligencePanel";
+import DelegatePanel from "./DelegatePanel";
 
 export default function EmailsTab({
   emails,
@@ -26,6 +28,11 @@ export default function EmailsTab({
   const [showHandled, setShowHandled] = useState(false);
   const [handled, setHandled] = useState<Email[]>([]);
   const [loadingHandled, setLoadingHandled] = useState(false);
+  const [analyzedIds, setAnalyzedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    getAnalyzedIds().then(setAnalyzedIds);
+  }, [emails]);
 
   const loadHandled = useCallback(async () => {
     setLoadingHandled(true);
@@ -118,7 +125,19 @@ export default function EmailsTab({
                     className="text-left"
                     onClick={() => setOpenId(open ? null : e.id)}
                   >
-                    <p className="font-medium">{e.subject}</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="font-medium">{e.subject}</p>
+                      {e.draft && (
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                          ✦ draft saved
+                        </span>
+                      )}
+                      {analyzedIds.has(e.id) && (
+                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                          🔎 analyzed
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">
                       {e.from_name}
                       {e.from_email ? ` · ${e.from_email}` : ""} ·{" "}
@@ -213,12 +232,6 @@ export default function EmailsTab({
                         ✓ Mark handled
                       </button>
                       <button
-                        onClick={() => decide(e, "delegate")}
-                        className="rounded-md border border-blue-300 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-50"
-                      >
-                        → Delegate
-                      </button>
-                      <button
                         onClick={() => decide(e, "defer")}
                         className="rounded-md border border-amber-300 px-2.5 py-1 text-xs text-amber-700 hover:bg-amber-50"
                       >
@@ -231,6 +244,8 @@ export default function EmailsTab({
                         Dismiss
                       </button>
                     </div>
+
+                    <DelegatePanel entityType="email" entityId={e.id} />
                   </div>
                 )}
               </li>

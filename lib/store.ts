@@ -22,6 +22,7 @@ import type {
   Priority,
   Task,
   TaskStatus,
+  Tracker,
   Viewpoint,
 } from "./types";
 
@@ -354,7 +355,7 @@ export async function deleteKnowledge(id: string): Promise<void> {
 // ---- Decision intelligence ------------------------------------------------
 
 export async function analyzeItem(
-  entityType: "email" | "task" | "deal",
+  entityType: "email" | "task" | "deal" | "tracker",
   entityId: string
 ): Promise<Insight> {
   if (!(await hasBackend())) {
@@ -449,4 +450,70 @@ export async function getBrief(): Promise<string> {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || "Brief failed");
   return data.brief as string;
+}
+
+// ---- Trackers -------------------------------------------------------------
+
+export async function getTrackers(): Promise<Tracker[]> {
+  if (!(await hasBackend())) return [];
+  const r = await fetch("/api/trackers");
+  return r.ok ? r.json() : [];
+}
+
+export async function addTracker(input: {
+  title: string;
+  url: string;
+  type?: string;
+  note?: string;
+}): Promise<void> {
+  if (!(await hasBackend())) throw new Error("Trackers need the live database.");
+  await fetch("/api/trackers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteTracker(id: string): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch(`/api/trackers?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+// ---- Delegation (AI note → Microsoft Teams) -------------------------------
+
+export async function delegationNote(input: {
+  entityType: "email" | "task";
+  entityId: string;
+  toName?: string;
+}): Promise<string> {
+  if (!(await hasBackend())) {
+    throw new Error("Delegation drafting needs the live database + an AI key.");
+  }
+  const r = await fetch("/api/delegate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Could not draft note");
+  return data.note as string;
+}
+
+// ---- Status & indicators --------------------------------------------------
+
+export async function getAiStatus(): Promise<"gemini" | "anthropic" | "none"> {
+  if (!(await hasBackend())) return "none";
+  const r = await fetch("/api/ai-status");
+  if (!r.ok) return "none";
+  const data = await r.json();
+  return data.provider ?? "none";
+}
+
+/** Ids of items that already have a stored AI insight (for "analyzed" badges). */
+export async function getAnalyzedIds(): Promise<Set<string>> {
+  if (!(await hasBackend())) return new Set();
+  const r = await fetch("/api/insights");
+  if (!r.ok) return new Set();
+  const rows: { entity_id: string }[] = await r.json();
+  return new Set(rows.map((x) => x.entity_id));
 }

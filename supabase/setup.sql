@@ -51,3 +51,14 @@ alter table knowledge  enable row level security;
 alter table deals      enable row level security;
 alter table viewpoints enable row level security;
 alter table insights   enable row level security;
+
+-- Client / data trackers (external links surfaced in the command center)
+create table if not exists trackers (
+  id          text primary key,
+  title       text not null,
+  url         text not null,
+  type        text not null default 'link',  -- sharepoint | appsscript | sheet | link
+  note        text,
+  created_at  timestamptz not null default now()
+);
+alter table trackers enable row level security;

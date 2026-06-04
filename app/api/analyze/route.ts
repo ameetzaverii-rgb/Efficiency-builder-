@@ -18,7 +18,22 @@ const INSIGHT_SCHEMA = {
     },
     context: {
       type: "string",
-      description: "2-4 sentences of relevant background from the item + knowledge base.",
+      description: "A SHORT context window — max 2 sentences of the most relevant background.",
+    },
+    decision_options: {
+      type: "array",
+      description:
+        "When a decision is genuinely needed, present 2-4 concrete choices in multiple-choice form. If no real decision is required, return an empty array.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          option: { type: "string", description: "A specific, actionable choice." },
+          implication: { type: "string", description: "One line: what this choice means / its trade-off." },
+          recommended: { type: "boolean" },
+        },
+        required: ["option", "implication", "recommended"],
+      },
     },
     considerations: {
       type: "array",
@@ -48,6 +63,7 @@ const INSIGHT_SCHEMA = {
   required: [
     "decision_required",
     "context",
+    "decision_options",
     "considerations",
     "risks",
     "recommendation",
@@ -77,7 +93,13 @@ export async function POST(req: NextRequest) {
   const supabase = getServerClient();
 
   const table =
-    entityType === "task" ? "tasks" : entityType === "deal" ? "deals" : "emails";
+    entityType === "task"
+      ? "tasks"
+      : entityType === "deal"
+      ? "deals"
+      : entityType === "tracker"
+      ? "trackers"
+      : "emails";
   const { data: entity, error: entErr } = await supabase
     .from(table)
     .select("*")
@@ -105,6 +127,8 @@ export async function POST(req: NextRequest) {
       ? `EMAIL\nFrom: ${entity.from_name}${entity.from_email ? ` <${entity.from_email}>` : ""}\nSubject: ${entity.subject}\nReceived: ${entity.received_date}\nContent: ${entity.summary ?? "(none)"}`
       : entityType === "task"
       ? `TASK\nTitle: ${entity.title}\nProject: ${entity.project}\nPriority: ${entity.priority}\nNote: ${entity.note ?? "(none)"}`
+      : entityType === "tracker"
+      ? `CLIENT TRACKER\nTitle: ${entity.title}\nLink: ${entity.url}\nNote: ${entity.note ?? "(none)"}\nThe discussion below contains related emails/notes about these clients.`
       : `DEAL\nName: ${entity.name}\nPartner: ${entity.partner ?? "?"}\nStage: ${entity.stage}\nValue: ${entity.value ?? "?"}\nNext step: ${entity.next_step ?? "?"}\nNote: ${entity.note ?? "(none)"}`;
 
   const viewpointsText = viewpoints.length
@@ -114,6 +138,8 @@ export async function POST(req: NextRequest) {
     : "(no viewpoints recorded yet)";
 
   const systemPrompt = `You are the chief-of-staff and decision analyst for ${OWNER}. For each item, produce sharp, honest decision intelligence to help ${OWNER} decide fast and well. Be specific to GSL's education/future-skills business; avoid generic advice. Weigh every recorded viewpoint. If key information is missing, say what's needed rather than guessing.
+
+CRITICAL: Keep "context" to at most 2 sentences. When a decision is genuinely required, present it as 2-4 concrete multiple-choice "decision_options", each with its implication, and mark exactly one as recommended. If the item needs no real decision (pure FYI), return an empty decision_options array.
 
 # KNOWLEDGE BASE
 ${knowledgeText(knowledge)}`;
