@@ -1,8 +1,11 @@
 "use client";
 
+import PeoplePanel from "./PeoplePanel";
+
 export default function SetupTab({ online }: { online: boolean | null }) {
   return (
     <div className="space-y-4">
+      <PeoplePanel />
       <div
         className={`rounded-lg border p-4 ${
           online

@@ -62,3 +62,15 @@ create table if not exists trackers (
   created_at  timestamptz not null default now()
 );
 alter table trackers enable row level security;
+
+-- Team / people directory (powers smart delegation via Teams)
+create table if not exists people (
+  id          text primary key,
+  name        text not null,
+  email       text,
+  role        text,
+  team        text,
+  note        text,
+  created_at  timestamptz not null default now()
+);
+alter table people enable row level security;

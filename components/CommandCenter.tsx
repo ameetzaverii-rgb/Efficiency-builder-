@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Email, HistoryEvent, Task } from "@/lib/types";
 import { getAiStatus, getEmails, getHistory, getTasks, isOnline } from "@/lib/store";
 import TodayTab from "./TodayTab";
+import DecisionQueueTab from "./DecisionQueueTab";
 import TasksTab from "./TasksTab";
 import EmailsTab from "./EmailsTab";
 import PipelineTab from "./PipelineTab";
@@ -14,6 +15,7 @@ import SetupTab from "./SetupTab";
 
 type TabKey =
   | "today"
+  | "decisions"
   | "tasks"
   | "emails"
   | "pipeline"
@@ -24,6 +26,7 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "today", label: "Today" },
+  { key: "decisions", label: "Decisions" },
   { key: "tasks", label: "Tasks" },
   { key: "emails", label: "Emails" },
   { key: "pipeline", label: "Pipeline" },
@@ -118,6 +121,13 @@ export default function CommandCenter() {
           <>
             {tab === "today" && (
               <TodayTab tasks={tasks} emails={emails} onChanged={loadAll} />
+            )}
+            {tab === "decisions" && (
+              <DecisionQueueTab
+                tasks={tasks}
+                emails={emails}
+                onChanged={loadAll}
+              />
             )}
             {tab === "tasks" && <TasksTab tasks={tasks} onChanged={loadAll} />}
             {tab === "emails" && (

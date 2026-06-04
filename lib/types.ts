@@ -85,6 +85,16 @@ export interface RefreshResult {
 /** External client/data trackers surfaced in the command center. */
 export type TrackerType = "sharepoint" | "appsscript" | "sheet" | "link";
 
+export interface Person {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string | null;
+  team: string | null;
+  note: string | null;
+  created_at: string;
+}
+
 export interface Tracker {
   id: string;
   title: string;

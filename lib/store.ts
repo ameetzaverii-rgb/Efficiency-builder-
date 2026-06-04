@@ -23,6 +23,7 @@ import type {
   Task,
   TaskStatus,
   Tracker,
+  Person,
   Viewpoint,
 } from "./types";
 
@@ -497,6 +498,34 @@ export async function delegationNote(input: {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || "Could not draft note");
   return data.note as string;
+}
+
+// ---- People directory -----------------------------------------------------
+
+export async function getPeople(): Promise<Person[]> {
+  if (!(await hasBackend())) return [];
+  const r = await fetch("/api/people");
+  return r.ok ? r.json() : [];
+}
+
+export async function addPerson(input: {
+  name: string;
+  email?: string;
+  role?: string;
+  team?: string;
+  note?: string;
+}): Promise<void> {
+  if (!(await hasBackend())) throw new Error("Directory needs the live database.");
+  await fetch("/api/people", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deletePerson(id: string): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch(`/api/people?id=${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // ---- Status & indicators --------------------------------------------------

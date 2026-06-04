@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { delegationNote } from "@/lib/store";
+import { useEffect, useState } from "react";
+import type { Person } from "@/lib/types";
+import { delegationNote, getPeople } from "@/lib/store";
 
 /** Draft a delegation note with AI and hand it off via Microsoft Teams. */
 export default function DelegatePanel({
@@ -17,6 +18,19 @@ export default function DelegatePanel({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+
+  useEffect(() => {
+    if (open && people.length === 0) getPeople().then(setPeople);
+  }, [open, people.length]);
+
+  const pick = (id: string) => {
+    const p = people.find((x) => x.id === id);
+    if (p) {
+      setName(p.name);
+      setEmail(p.email ?? "");
+    }
+  };
 
   const draft = async () => {
     setBusy(true);
@@ -50,6 +64,23 @@ export default function DelegatePanel({
   return (
     <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50/40 p-3">
       <div className="flex flex-wrap gap-2">
+        {people.length > 0 && (
+          <select
+            onChange={(e) => pick(e.target.value)}
+            defaultValue=""
+            className="rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+          >
+            <option value="" disabled>
+              Pick from team…
+            </option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.role ? ` — ${p.role}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
