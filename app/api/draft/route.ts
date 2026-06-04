@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerClient } from "@/lib/supabase";
-import { DRAFT_MODEL, getAnthropic } from "@/lib/anthropic";
+import { generate } from "@/lib/ai";
 import type { Email, Knowledge } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -53,16 +53,6 @@ export async function POST(req: NextRequest) {
     .order("created_at", { ascending: false });
   if (Array.isArray(kRows)) knowledge = kRows as Knowledge[];
 
-  let client: Anthropicish;
-  try {
-    client = getAnthropic();
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Anthropic not configured" },
-      { status: 500 }
-    );
-  }
-
   const systemPrompt = `You draft email replies on behalf of ${OWNER}.
 
 Write in the first person as ${OWNER}. Be concise, warm, and decisive — the tone of a busy founder who respects the reader's time. Use the knowledge base below for facts, pricing, names, policies, and the owner's writing style. Never invent commitments, numbers, or dates that aren't supported by the email or the knowledge base; if something needs the owner's input, leave a clearly marked [bracketed placeholder].
@@ -84,23 +74,11 @@ ${body.instruction ? `Special instruction from ${OWNER}: ${body.instruction}` : 
 
   let draft = "";
   try {
-    const resp = await client.messages.create({
-      model: DRAFT_MODEL,
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
-      system: [
-        {
-          type: "text",
-          text: systemPrompt,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: userPrompt }],
+    draft = await generate({
+      system: systemPrompt,
+      user: userPrompt,
+      maxTokens: 2000,
     });
-    for (const block of resp.content) {
-      if (block.type === "text") draft += block.text;
-    }
-    draft = draft.trim();
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Draft failed";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -115,6 +93,3 @@ ${body.instruction ? `Special instruction from ${OWNER}: ${body.instruction}` : 
 
   return NextResponse.json({ draft }, { status: 200 });
 }
-
-// Minimal structural type so we don't import the SDK type surface here.
-type Anthropicish = ReturnType<typeof getAnthropic>;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerClient } from "@/lib/supabase";
-import { DRAFT_MODEL, getAnthropic } from "@/lib/anthropic";
+import { generate } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,16 +26,6 @@ export async function GET() {
   const deals = dealsRes.data ?? [];
   const history = historyRes.data ?? [];
 
-  let client;
-  try {
-    client = getAnthropic();
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Anthropic not configured" },
-      { status: 500 }
-    );
-  }
-
   const data = `# PENDING EMAILS (${emails.length})
 ${emails.map((e) => `- [${e.tag}] ${e.subject} — ${e.from_name} (${e.received_date})`).join("\n") || "(none)"}
 
@@ -52,17 +42,11 @@ ${history.slice(0, 15).map((h) => `- ${h.event_type}: ${h.entity_title ?? ""}`).
 
   let brief = "";
   try {
-    const resp = await client.messages.create({
-      model: DRAFT_MODEL,
-      max_tokens: 1500,
-      thinking: { type: "adaptive" },
+    brief = await generate({
       system: systemPrompt,
-      messages: [{ role: "user", content: `Today's data:\n\n${data}` }],
+      user: `Today's data:\n\n${data}`,
+      maxTokens: 1500,
     });
-    for (const block of resp.content) {
-      if (block.type === "text") brief += block.text;
-    }
-    brief = brief.trim();
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Brief failed" },

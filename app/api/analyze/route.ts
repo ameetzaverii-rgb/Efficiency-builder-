@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerClient } from "@/lib/supabase";
-import { DRAFT_MODEL, getAnthropic } from "@/lib/anthropic";
-import type { Knowledge, Viewpoint } from "@/lib/types";
+import { generate, parseJSON } from "@/lib/ai";
+import type { Insight, Knowledge, Viewpoint } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -100,16 +100,6 @@ export async function POST(req: NextRequest) {
     .order("created_at", { ascending: true });
   const viewpoints = (vRows as Viewpoint[]) ?? [];
 
-  let client;
-  try {
-    client = getAnthropic();
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Anthropic not configured" },
-      { status: 500 }
-    );
-  }
-
   const itemDescription =
     entityType === "email"
       ? `EMAIL\nFrom: ${entity.from_name}${entity.from_email ? ` <${entity.from_email}>` : ""}\nSubject: ${entity.subject}\nReceived: ${entity.received_date}\nContent: ${entity.summary ?? "(none)"}`
@@ -135,25 +125,15 @@ ${itemDescription}
 # VIEWPOINTS RECORDED SO FAR (weigh these)
 ${viewpointsText}`;
 
-  let insight: unknown;
+  let insight: Insight;
   try {
-    const resp = await client.messages.create({
-      model: DRAFT_MODEL,
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
-      system: [
-        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
-      ],
-      output_config: {
-        format: { type: "json_schema", schema: INSIGHT_SCHEMA },
-      },
-      messages: [{ role: "user", content: userPrompt }],
+    const text = await generate({
+      system: systemPrompt,
+      user: userPrompt,
+      maxTokens: 2000,
+      jsonSchema: INSIGHT_SCHEMA,
     });
-    let text = "";
-    for (const block of resp.content) {
-      if (block.type === "text") text += block.text;
-    }
-    insight = JSON.parse(text);
+    insight = parseJSON<Insight>(text);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Analysis failed" },
