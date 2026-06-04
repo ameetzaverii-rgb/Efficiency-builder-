@@ -81,3 +81,32 @@ export interface RefreshResult {
   emailsAdded: number;
   timestamp: string;
 }
+
+/** A perspective/input on a decision, accumulated over time. */
+export interface Viewpoint {
+  id: string;
+  entity_id: string;
+  entity_type: string; // email | task | deal
+  author: string | null;
+  content: string;
+  created_at: string;
+}
+
+/** AI-synthesized decision intelligence for an item. */
+export interface Insight {
+  decision_required: string;
+  context: string;
+  considerations: { angle: string; point: string }[];
+  risks: string[];
+  recommendation: string;
+  confidence: "low" | "medium" | "high";
+  open_questions: string[];
+}
+
+/** A stored insight row (latest analysis for an entity). */
+export interface InsightRow {
+  entity_id: string;
+  entity_type: string;
+  data: Insight;
+  updated_at: string;
+}

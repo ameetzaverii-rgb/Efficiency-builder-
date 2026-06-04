@@ -11,14 +11,18 @@
 // functions.
 
 import type {
+  Deal,
   Email,
   EmailStatus,
   HistoryEvent,
+  Insight,
+  InsightRow,
   Knowledge,
   KnowledgeKind,
   Priority,
   Task,
   TaskStatus,
+  Viewpoint,
 } from "./types";
 
 const TASKS_KEY = "gsl_tasks";
@@ -345,4 +349,104 @@ export async function deleteKnowledge(id: string): Promise<void> {
   await fetch(`/api/knowledge?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+// ---- Decision intelligence ------------------------------------------------
+
+export async function analyzeItem(
+  entityType: "email" | "task" | "deal",
+  entityId: string
+): Promise<Insight> {
+  if (!(await hasBackend())) {
+    throw new Error("Analysis needs the live database + Anthropic key.");
+  }
+  const r = await fetch("/api/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ entityType, entityId }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Analysis failed");
+  return data.insight as Insight;
+}
+
+export async function getInsight(entityId: string): Promise<InsightRow | null> {
+  if (!(await hasBackend())) return null;
+  const r = await fetch(`/api/analyze?entityId=${encodeURIComponent(entityId)}`);
+  return r.ok ? r.json() : null;
+}
+
+export async function getViewpoints(entityId: string): Promise<Viewpoint[]> {
+  if (!(await hasBackend())) return [];
+  const r = await fetch(
+    `/api/viewpoints?entityId=${encodeURIComponent(entityId)}`
+  );
+  return r.ok ? r.json() : [];
+}
+
+export async function addViewpoint(input: {
+  entityId: string;
+  entityType?: string;
+  author?: string;
+  content: string;
+}): Promise<void> {
+  if (!(await hasBackend())) throw new Error("Viewpoints need the live database.");
+  await fetch("/api/viewpoints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteViewpoint(id: string): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch(`/api/viewpoints?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+// ---- Pipeline (deals) -----------------------------------------------------
+
+export async function getDeals(): Promise<Deal[]> {
+  if (!(await hasBackend())) return [];
+  const r = await fetch("/api/deals");
+  return r.ok ? r.json() : [];
+}
+
+export async function addDeal(input: Partial<Deal> & { name: string }): Promise<void> {
+  if (!(await hasBackend())) throw new Error("Pipeline needs the live database.");
+  await fetch("/api/deals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateDeal(
+  id: string,
+  updates: Partial<Deal>
+): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch("/api/deals", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...updates }),
+  });
+}
+
+export async function deleteDeal(id: string): Promise<void> {
+  if (!(await hasBackend())) return;
+  await fetch(`/api/deals?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+// ---- Morning brief --------------------------------------------------------
+
+export async function getBrief(): Promise<string> {
+  if (!(await hasBackend())) {
+    throw new Error("The morning brief needs the live database + Anthropic key.");
+  }
+  const r = await fetch("/api/brief");
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Brief failed");
+  return data.brief as string;
 }

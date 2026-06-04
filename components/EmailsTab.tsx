@@ -8,6 +8,7 @@ import {
   logDecision,
   setEmailStatus,
 } from "@/lib/store";
+import IntelligencePanel from "./IntelligencePanel";
 
 export default function EmailsTab({
   emails,
@@ -138,6 +139,8 @@ export default function EmailsTab({
                     {e.summary && (
                       <p className="text-sm text-slate-600">{e.summary}</p>
                     )}
+
+                    <IntelligencePanel entityType="email" entityId={e.id} />
 
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">

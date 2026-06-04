@@ -6,16 +6,25 @@ import { getEmails, getHistory, getTasks, isOnline } from "@/lib/store";
 import TodayTab from "./TodayTab";
 import TasksTab from "./TasksTab";
 import EmailsTab from "./EmailsTab";
+import PipelineTab from "./PipelineTab";
 import HistoryTab from "./HistoryTab";
 import KnowledgeTab from "./KnowledgeTab";
 import SetupTab from "./SetupTab";
 
-type TabKey = "today" | "tasks" | "emails" | "knowledge" | "history" | "setup";
+type TabKey =
+  | "today"
+  | "tasks"
+  | "emails"
+  | "pipeline"
+  | "knowledge"
+  | "history"
+  | "setup";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "tasks", label: "Tasks" },
   { key: "emails", label: "Emails" },
+  { key: "pipeline", label: "Pipeline" },
   { key: "knowledge", label: "Knowledge" },
   { key: "history", label: "History" },
   { key: "setup", label: "Setup" },
@@ -86,6 +95,7 @@ export default function CommandCenter() {
             {tab === "emails" && (
               <EmailsTab emails={emails} onChanged={loadAll} />
             )}
+            {tab === "pipeline" && <PipelineTab />}
             {tab === "knowledge" && <KnowledgeTab />}
             {tab === "history" && <HistoryTab history={history} />}
             {tab === "setup" && <SetupTab online={online} />}

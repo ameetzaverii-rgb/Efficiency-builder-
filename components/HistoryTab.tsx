@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   email_replied: "Email replied",
   email_dismissed: "Email dismissed",
   email_drafted: "AI reply drafted",
+  analyzed: "Decision analyzed",
   decision_delegate: "Delegated",
   decision_defer: "Deferred",
   seed: "Loaded starter data",

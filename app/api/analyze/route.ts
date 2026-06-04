@@ -1,0 +1,197 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerClient } from "@/lib/supabase";
+import { DRAFT_MODEL, getAnthropic } from "@/lib/anthropic";
+import type { Knowledge, Viewpoint } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const OWNER = "Ameet Zaveri (GSL Innovation Factory)";
+
+const INSIGHT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    decision_required: {
+      type: "string",
+      description: "One sentence: the specific decision being asked of the owner.",
+    },
+    context: {
+      type: "string",
+      description: "2-4 sentences of relevant background from the item + knowledge base.",
+    },
+    considerations: {
+      type: "array",
+      description: "Distinct angles/viewpoints on the decision.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          angle: { type: "string", description: "e.g. Commercial, Operational, Relationship, Risk, Strategic" },
+          point: { type: "string" },
+        },
+        required: ["angle", "point"],
+      },
+    },
+    risks: { type: "array", items: { type: "string" } },
+    recommendation: {
+      type: "string",
+      description: "A clear recommended course of action, in the owner's interest.",
+    },
+    confidence: { type: "string", enum: ["low", "medium", "high"] },
+    open_questions: {
+      type: "array",
+      description: "What information or viewpoints are still needed before deciding well.",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "decision_required",
+    "context",
+    "considerations",
+    "risks",
+    "recommendation",
+    "confidence",
+    "open_questions",
+  ],
+};
+
+function knowledgeText(rows: Knowledge[]): string {
+  if (!rows.length) return "(no knowledge base entries yet)";
+  return rows.map((r) => `- [${r.kind}] ${r.title}: ${r.content}`).join("\n");
+}
+
+/**
+ * POST /api/analyze { entityType: "email"|"task"|"deal", entityId }
+ * Produces structured decision intelligence, incorporating any accumulated
+ * viewpoints, and stores it as the latest insight for the item.
+ */
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const entityType: string = body?.entityType ?? "email";
+  const entityId: string | undefined = body?.entityId;
+  if (!entityId) {
+    return NextResponse.json({ error: "entityId is required" }, { status: 400 });
+  }
+
+  const supabase = getServerClient();
+
+  const table =
+    entityType === "task" ? "tasks" : entityType === "deal" ? "deals" : "emails";
+  const { data: entity, error: entErr } = await supabase
+    .from(table)
+    .select("*")
+    .eq("id", entityId)
+    .single();
+  if (entErr || !entity) {
+    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  }
+
+  const { data: kRows } = await supabase
+    .from("knowledge")
+    .select("*")
+    .order("created_at", { ascending: false });
+  const knowledge = (kRows as Knowledge[]) ?? [];
+
+  const { data: vRows } = await supabase
+    .from("viewpoints")
+    .select("*")
+    .eq("entity_id", entityId)
+    .order("created_at", { ascending: true });
+  const viewpoints = (vRows as Viewpoint[]) ?? [];
+
+  let client;
+  try {
+    client = getAnthropic();
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Anthropic not configured" },
+      { status: 500 }
+    );
+  }
+
+  const itemDescription =
+    entityType === "email"
+      ? `EMAIL\nFrom: ${entity.from_name}${entity.from_email ? ` <${entity.from_email}>` : ""}\nSubject: ${entity.subject}\nReceived: ${entity.received_date}\nContent: ${entity.summary ?? "(none)"}`
+      : entityType === "task"
+      ? `TASK\nTitle: ${entity.title}\nProject: ${entity.project}\nPriority: ${entity.priority}\nNote: ${entity.note ?? "(none)"}`
+      : `DEAL\nName: ${entity.name}\nPartner: ${entity.partner ?? "?"}\nStage: ${entity.stage}\nValue: ${entity.value ?? "?"}\nNext step: ${entity.next_step ?? "?"}\nNote: ${entity.note ?? "(none)"}`;
+
+  const viewpointsText = viewpoints.length
+    ? viewpoints
+        .map((v) => `- ${v.author ? v.author + ": " : ""}${v.content}`)
+        .join("\n")
+    : "(no viewpoints recorded yet)";
+
+  const systemPrompt = `You are the chief-of-staff and decision analyst for ${OWNER}. For each item, produce sharp, honest decision intelligence to help ${OWNER} decide fast and well. Be specific to GSL's education/future-skills business; avoid generic advice. Weigh every recorded viewpoint. If key information is missing, say what's needed rather than guessing.
+
+# KNOWLEDGE BASE
+${knowledgeText(knowledge)}`;
+
+  const userPrompt = `Analyze this item and return the decision intelligence.
+
+${itemDescription}
+
+# VIEWPOINTS RECORDED SO FAR (weigh these)
+${viewpointsText}`;
+
+  let insight: unknown;
+  try {
+    const resp = await client.messages.create({
+      model: DRAFT_MODEL,
+      max_tokens: 2000,
+      thinking: { type: "adaptive" },
+      system: [
+        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: {
+        format: { type: "json_schema", schema: INSIGHT_SCHEMA },
+      },
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    let text = "";
+    for (const block of resp.content) {
+      if (block.type === "text") text += block.text;
+    }
+    insight = JSON.parse(text);
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Analysis failed" },
+      { status: 500 }
+    );
+  }
+
+  const now = new Date().toISOString();
+  await supabase.from("insights").upsert(
+    {
+      entity_id: entityId,
+      entity_type: entityType,
+      data: insight,
+      updated_at: now,
+    },
+    { onConflict: "entity_id" }
+  );
+  await supabase.from("history").insert({
+    event_type: "analyzed",
+    entity_id: entityId,
+    entity_title:
+      entity.subject ?? entity.title ?? entity.name ?? "item",
+  });
+
+  return NextResponse.json({ insight }, { status: 200 });
+}
+
+/** GET /api/analyze?entityId=... — fetch the stored insight, if any. */
+export async function GET(req: NextRequest) {
+  const supabase = getServerClient();
+  const entityId = req.nextUrl.searchParams.get("entityId");
+  if (!entityId) {
+    return NextResponse.json({ error: "entityId required" }, { status: 400 });
+  }
+  const { data } = await supabase
+    .from("insights")
+    .select("*")
+    .eq("entity_id", entityId)
+    .maybeSingle();
+  return NextResponse.json(data ?? null, { status: 200 });
+}
