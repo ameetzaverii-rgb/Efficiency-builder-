@@ -19,6 +19,7 @@ export default function DelegatePanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
+  const [context, setContext] = useState("");
 
   useEffect(() => {
     if (open && people.length === 0) getPeople().then(setPeople);
@@ -36,7 +37,14 @@ export default function DelegatePanel({
     setBusy(true);
     setError(null);
     try {
-      setNote(await delegationNote({ entityType, entityId, toName: name || undefined }));
+      setNote(
+        await delegationNote({
+          entityType,
+          entityId,
+          toName: name || undefined,
+          context: context || undefined,
+        })
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not draft");
     } finally {
@@ -93,14 +101,20 @@ export default function DelegatePanel({
           placeholder="their @getsetlearn.info email"
           className="min-w-[200px] flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-ink"
         />
-        <button
-          onClick={draft}
-          disabled={busy}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {busy ? "Drafting…" : "✦ Draft note"}
-        </button>
       </div>
+      <input
+        value={context}
+        onChange={(e) => setContext(e.target.value)}
+        placeholder="what you need from them (optional — the AI also pulls the item's analysis & viewpoints)"
+        className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-ink"
+      />
+      <button
+        onClick={draft}
+        disabled={busy}
+        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+      >
+        {busy ? "Drafting…" : "✦ Draft hand-off note"}
+      </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
       {note && (
         <>

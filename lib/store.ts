@@ -486,6 +486,7 @@ export async function delegationNote(input: {
   entityType: "email" | "task";
   entityId: string;
   toName?: string;
+  context?: string;
 }): Promise<string> {
   if (!(await hasBackend())) {
     throw new Error("Delegation drafting needs the live database + an AI key.");
