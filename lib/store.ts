@@ -501,6 +501,31 @@ export async function delegationNote(input: {
   return data.note as string;
 }
 
+// ---- Jira ------------------------------------------------------------------
+
+export interface JiraIssue {
+  key: string;
+  url: string;
+  summary: string;
+  status: string;
+  statusCategory: string;
+  assignee: string | null;
+  priority: string | null;
+  duedate: string | null;
+  type: string | null;
+  project: string | null;
+}
+
+export async function getJira(
+  jql?: string
+): Promise<{ configured: boolean; issues: JiraIssue[]; error?: string }> {
+  if (!(await hasBackend())) return { configured: false, issues: [] };
+  const q = jql ? `?jql=${encodeURIComponent(jql)}` : "";
+  const r = await fetch(`/api/jira${q}`);
+  if (!r.ok) return { configured: false, issues: [] };
+  return r.json();
+}
+
 // ---- People directory -----------------------------------------------------
 
 export async function getPeople(): Promise<Person[]> {
@@ -530,7 +555,6 @@ export async function deletePerson(id: string): Promise<void> {
 }
 
 // ---- Status & indicators --------------------------------------------------
-
 export async function getAiStatus(): Promise<"gemini" | "anthropic" | "none"> {
   if (!(await hasBackend())) return "none";
   const r = await fetch("/api/ai-status");

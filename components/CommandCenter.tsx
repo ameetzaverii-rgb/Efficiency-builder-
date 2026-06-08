@@ -9,6 +9,7 @@ import TasksTab from "./TasksTab";
 import EmailsTab from "./EmailsTab";
 import PipelineTab from "./PipelineTab";
 import TrackersTab from "./TrackersTab";
+import JiraTab from "./JiraTab";
 import HistoryTab from "./HistoryTab";
 import KnowledgeTab from "./KnowledgeTab";
 import SetupTab from "./SetupTab";
@@ -20,6 +21,7 @@ type TabKey =
   | "emails"
   | "pipeline"
   | "trackers"
+  | "jira"
   | "knowledge"
   | "history"
   | "setup";
@@ -31,6 +33,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "emails", label: "Emails" },
   { key: "pipeline", label: "Pipeline" },
   { key: "trackers", label: "Trackers" },
+  { key: "jira", label: "Jira" },
   { key: "knowledge", label: "Knowledge" },
   { key: "history", label: "History" },
   { key: "setup", label: "Setup" },
@@ -135,6 +138,7 @@ export default function CommandCenter() {
             )}
             {tab === "pipeline" && <PipelineTab />}
             {tab === "trackers" && <TrackersTab />}
+            {tab === "jira" && <JiraTab />}
             {tab === "knowledge" && <KnowledgeTab />}
             {tab === "history" && <HistoryTab history={history} />}
             {tab === "setup" && <SetupTab online={online} />}
