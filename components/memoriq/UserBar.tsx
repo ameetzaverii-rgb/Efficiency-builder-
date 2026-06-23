@@ -1,45 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBrowserClient } from "@/lib/supabase";
-import { getProfile, signOut } from "@/lib/memoriq-auth";
+import { getSession, getProfile, signOut, type Profile } from "@/lib/memoriq-auth";
 import AuthModal from "./AuthModal";
 
-type Profile = {
-  total_xp: number;
-  badges: string[];
-  challenges_completed: number;
-  username: string | null;
-};
-
 export default function UserBar() {
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ $id: string; email: string } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
-    const sb = getBrowserClient();
-    sb.auth.getSession().then(({ data }) => {
-      const u = data.session?.user;
+    getSession().then((u) => {
       if (u) {
-        setUser({ id: u.id, email: u.email ?? "" });
-        getProfile(u.id).then(setProfile);
+        setUser({ $id: u.$id, email: u.email });
+        getProfile(u.$id).then(setProfile);
       }
     });
-
-    const { data: listener } = sb.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user;
-      if (u) {
-        setUser({ id: u.id, email: u.email ?? "" });
-        getProfile(u.id).then(setProfile);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => listener.subscription.unsubscribe();
   }, []);
 
   if (!user) {
@@ -84,7 +61,7 @@ export default function UserBar() {
             ))}
           </div>
           <button
-            onClick={async () => { await signOut(); setShowMenu(false); }}
+            onClick={async () => { await signOut(); setUser(null); setProfile(null); setShowMenu(false); }}
             className="w-full text-left text-red-400/60 hover:text-red-400 text-sm transition-colors"
           >
             Sign Out

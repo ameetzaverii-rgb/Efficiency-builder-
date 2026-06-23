@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ITEMS, BADGES, getRarityConfig } from "@/lib/memorabilia-data";
-import { getBrowserClient } from "@/lib/supabase";
+import { account } from "@/lib/appwrite";
 import { saveAttempt } from "@/lib/memoriq-auth";
 import AuthModal from "@/components/memoriq/AuthModal";
 import Leaderboard from "@/components/memoriq/Leaderboard";
@@ -94,9 +94,7 @@ export default function ChallengePage() {
 
   // Fetch current user on mount
   useEffect(() => {
-    getBrowserClient().auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user?.id ?? null);
-    });
+    account.get().then((u) => setUserId(u.$id)).catch(() => setUserId(null));
   }, []);
 
   const rarity = item ? getRarityConfig(item.rarity) : null;
