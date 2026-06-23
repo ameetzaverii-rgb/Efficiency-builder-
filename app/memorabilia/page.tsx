@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ITEMS, getRarityConfig, getTimeRemaining } from "@/lib/memorabilia-data";
+import UserBar from "@/components/memoriq/UserBar";
 
 function CountdownTimer({ endsAt }: { endsAt: string }) {
   const [time, setTime] = useState(getTimeRemaining(endsAt));
@@ -86,15 +87,7 @@ export default function MemorabiliaHome() {
               <p className="text-white/30 text-[10px] tracking-widest">WIN WHAT MATTERS</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
-              <span className="text-yellow-400 text-sm">⚡</span>
-              <span className="text-white font-bold text-sm">1,240 XP</span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-xs font-bold">
-              U
-            </div>
-          </div>
+          <UserBar />
         </div>
       </div>
 

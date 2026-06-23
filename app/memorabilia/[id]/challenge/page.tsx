@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ITEMS, BADGES, getRarityConfig } from "@/lib/memorabilia-data";
+import { getBrowserClient } from "@/lib/supabase";
+import { saveAttempt } from "@/lib/memoriq-auth";
+import AuthModal from "@/components/memoriq/AuthModal";
+import Leaderboard from "@/components/memoriq/Leaderboard";
 
 type Phase = "intro" | "question" | "result" | "final";
 
@@ -83,7 +87,17 @@ export default function ChallengePage() {
   const [showXpPopup, setShowXpPopup] = useState(false);
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
   const [answered, setAnswered] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [saved, setSaved] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    getBrowserClient().auth.getSession().then(({ data }) => {
+      setUserId(data.session?.user?.id ?? null);
+    });
+  }, []);
 
   const rarity = item ? getRarityConfig(item.rarity) : null;
   const question = item?.challenge.questions[currentQ];
@@ -237,8 +251,30 @@ export default function ChallengePage() {
   // ── FINAL ─────────────────────────────────────────────────────────────────
   if (phase === "final") {
     const correctCount = results.filter((r) => r.correct).length;
+
+    // Save attempt once per completion
+    if (!saved && userId) {
+      setSaved(true);
+      saveAttempt({
+        userId,
+        itemId: item.id,
+        scorePct,
+        xpEarned: totalXP,
+        correct: correctCount,
+        total: item.challenge.questions.length,
+        qualified,
+        badges: earnedBadges,
+      });
+    }
+
     return (
-      <div className="min-h-screen bg-[#080810] text-white flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-[#080810] text-white flex flex-col items-center justify-center px-4 py-12">
+        {showAuth && (
+          <AuthModal
+            onClose={() => setShowAuth(false)}
+            redirectMessage="Sign in to save your score and appear on the leaderboard."
+          />
+        )}
         <div className="max-w-lg w-full text-center space-y-8">
           {/* Result header */}
           <div>
@@ -314,6 +350,27 @@ export default function ChallengePage() {
             </div>
           )}
 
+          {/* Save nudge for guests */}
+          {!userId && (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm hover:text-white hover:border-white/30 transition-all"
+            >
+              🔐 Sign in to save your score & appear on the leaderboard
+            </button>
+          )}
+
+          {/* Leaderboard */}
+          <div className="text-left">
+            <p className="text-white/30 text-xs uppercase tracking-wider mb-3">Leaderboard</p>
+            <Leaderboard
+              itemId={item.id}
+              currentUserId={userId ?? undefined}
+              rarityText={rarity.text}
+              rarityBorder={rarity.border}
+            />
+          </div>
+
           {/* Actions */}
           <div className="space-y-3">
             {qualified ? (
@@ -331,6 +388,7 @@ export default function ChallengePage() {
                   setEarnedBadges([]);
                   setAnswered(false);
                   setSelected(null);
+                  setSaved(false);
                 }}
                 className={`w-full py-4 rounded-2xl bg-gradient-to-r ${rarity.gradient} text-black font-black text-lg hover:scale-[1.02] transition-transform`}
               >
