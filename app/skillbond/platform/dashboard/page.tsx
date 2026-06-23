@@ -5,7 +5,7 @@ import { formatCents, formatDate, daysUntil } from '@/lib/skillbond/utils'
 import Link from 'next/link'
 
 export default async function PlatformDashboard() {
-  const { userId } = auth()
+  const { userId } = await auth()
   if (!userId) redirect('/skillbond/platform/login')
 
   const platform = await getPlatformByUserId(userId)

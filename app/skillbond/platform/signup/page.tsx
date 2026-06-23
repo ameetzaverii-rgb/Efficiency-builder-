@@ -8,7 +8,7 @@ export default function PlatformSignup() {
           <h1 className="text-2xl font-bold text-gray-900">Join as a Platform</h1>
           <p className="text-gray-500 mt-2">Post skill challenges and find verified talent</p>
         </div>
-        <SignUp routing="hash" afterSignUpUrl="/skillbond/platform/onboarding" />
+        <SignUp routing="hash" forceRedirectUrl="/skillbond/platform/onboarding" />
       </div>
     </div>
   )

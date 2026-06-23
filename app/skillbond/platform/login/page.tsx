@@ -8,7 +8,7 @@ export default function PlatformLogin() {
           <h1 className="text-2xl font-bold text-gray-900">Platform Portal</h1>
           <p className="text-gray-500 mt-2">Sign in to manage your challenges</p>
         </div>
-        <SignIn routing="hash" afterSignInUrl="/skillbond/platform/dashboard" />
+        <SignIn routing="hash" forceRedirectUrl="/skillbond/platform/dashboard" />
       </div>
     </div>
   )
