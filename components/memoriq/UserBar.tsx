@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSession, getProfile, signOut, type Profile } from "@/lib/memoriq-auth";
+import { onAuthChange, getProfile, signOut, type Profile } from "@/lib/memoriq-auth";
+import { type User } from "firebase/auth";
 import AuthModal from "./AuthModal";
 
 export default function UserBar() {
-  const [user, setUser] = useState<{ $id: string; email: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
-    getSession().then((u) => {
-      if (u) {
-        setUser({ $id: u.$id, email: u.email });
-        getProfile(u.$id).then(setProfile);
-      }
+    return onAuthChange((u) => {
+      setUser(u);
+      if (u) getProfile(u.uid).then(setProfile);
+      else setProfile(null);
     });
   }, []);
 
@@ -44,7 +44,7 @@ export default function UserBar() {
         onClick={() => setShowMenu(!showMenu)}
         className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-xs font-black"
       >
-        {(profile?.username ?? user.email)[0].toUpperCase()}
+        {(profile?.username ?? user.email ?? "U")[0].toUpperCase()}
       </button>
 
       {showMenu && (
@@ -61,7 +61,7 @@ export default function UserBar() {
             ))}
           </div>
           <button
-            onClick={async () => { await signOut(); setUser(null); setProfile(null); setShowMenu(false); }}
+            onClick={async () => { await signOut(); setShowMenu(false); }}
             className="w-full text-left text-red-400/60 hover:text-red-400 text-sm transition-colors"
           >
             Sign Out

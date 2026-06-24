@@ -1,34 +1,69 @@
 "use client";
 
-import { account, databases, DB_ID, PROFILES_COL, ATTEMPTS_COL, Query, ID } from "./appwrite";
+import {
+  sendSignInLinkToEmail,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  type User,
+} from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  addDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getFirebaseAuth, getFirebaseDb } from "./firebase";
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function signInWithEmail(email: string) {
   try {
-    await account.createMagicURLToken(ID.unique(), email, `${window.location.origin}/memorabilia`);
+    await sendSignInLinkToEmail(getFirebaseAuth(), email, {
+      url: `${window.location.origin}/auth/callback`,
+      handleCodeInApp: true,
+    });
+    window.localStorage.setItem("memoriqEmail", email);
     return { error: null };
   } catch (e: unknown) {
     return { error: e as Error };
   }
 }
 
-export async function signOut() {
-  try { await account.deleteSession("current"); } catch {}
+export async function completeSignIn() {
+  const auth = getFirebaseAuth();
+  if (!isSignInWithEmailLink(auth, window.location.href)) return null;
+  const email = window.localStorage.getItem("memoriqEmail");
+  if (!email) throw new Error("No email found. Please sign in again.");
+  const result = await signInWithEmailLink(auth, email, window.location.href);
+  window.localStorage.removeItem("memoriqEmail");
+  return result.user;
 }
 
-export async function getSession() {
-  try {
-    return await account.get();
-  } catch {
-    return null;
-  }
+export async function signOut() {
+  await firebaseSignOut(getFirebaseAuth());
+}
+
+export function onAuthChange(cb: (user: User | null) => void) {
+  return onAuthStateChanged(getFirebaseAuth(), cb);
+}
+
+export function getCurrentUser() {
+  return getFirebaseAuth().currentUser;
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
 
 export type Profile = {
-  $id: string;
   user_id: string;
   username: string | null;
   total_xp: number;
@@ -37,72 +72,38 @@ export type Profile = {
 };
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  try {
-    const res = await databases.listDocuments(DB_ID, PROFILES_COL, [
-      Query.equal("user_id", userId),
-      Query.limit(1),
-    ]);
-    return (res.documents[0] as unknown as Profile) ?? null;
-  } catch {
-    return null;
-  }
+  const snap = await getDoc(doc(getFirebaseDb(), "memoriq_profiles", userId));
+  return snap.exists() ? (snap.data() as Profile) : null;
 }
 
 async function ensureProfile(userId: string): Promise<Profile> {
-  const existing = await getProfile(userId);
-  if (existing) return existing;
-  const doc = await databases.createDocument(DB_ID, PROFILES_COL, ID.unique(), {
-    user_id: userId,
-    username: null,
-    total_xp: 0,
-    badges: [],
-    challenges_completed: 0,
-  });
-  return doc as unknown as Profile;
+  const ref = doc(getFirebaseDb(), "memoriq_profiles", userId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return snap.data() as Profile;
+  const profile: Profile = { user_id: userId, username: null, total_xp: 0, badges: [], challenges_completed: 0 };
+  await setDoc(ref, profile);
+  return profile;
 }
 
 export async function updateUsername(userId: string, username: string) {
-  const profile = await getProfile(userId);
-  if (!profile) return;
-  await databases.updateDocument(DB_ID, PROFILES_COL, profile.$id, { username });
+  await updateDoc(doc(getFirebaseDb(), "memoriq_profiles", userId), { username });
 }
 
 // ── Attempts ──────────────────────────────────────────────────────────────────
 
 export async function saveAttempt({
-  userId,
-  itemId,
-  scorePct,
-  xpEarned,
-  correct,
-  total,
-  qualified,
-  badges,
+  userId, itemId, scorePct, xpEarned, correct, total, qualified, badges,
 }: {
-  userId: string;
-  itemId: string;
-  scorePct: number;
-  xpEarned: number;
-  correct: number;
-  total: number;
-  qualified: boolean;
-  badges: string[];
+  userId: string; itemId: string; scorePct: number; xpEarned: number;
+  correct: number; total: number; qualified: boolean; badges: string[];
 }) {
-  await databases.createDocument(DB_ID, ATTEMPTS_COL, ID.unique(), {
-    user_id: userId,
-    item_id: itemId,
-    score_pct: scorePct,
-    xp_earned: xpEarned,
-    correct,
-    total,
-    qualified,
-    badges,
+  await addDoc(collection(getFirebaseDb(), "memoriq_attempts"), {
+    user_id: userId, item_id: itemId, score_pct: scorePct, xp_earned: xpEarned,
+    correct, total, qualified, badges, created_at: serverTimestamp(),
   });
-
   const profile = await ensureProfile(userId);
   const mergedBadges = Array.from(new Set([...profile.badges, ...badges]));
-
-  await databases.updateDocument(DB_ID, PROFILES_COL, profile.$id, {
+  await updateDoc(doc(getFirebaseDb(), "memoriq_profiles", userId), {
     total_xp: profile.total_xp + xpEarned,
     badges: mergedBadges,
     challenges_completed: profile.challenges_completed + 1,
@@ -112,60 +113,35 @@ export async function saveAttempt({
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
 export type LeaderboardRow = {
-  user_id: string;
-  username: string;
-  best_xp: number;
-  best_score: number;
-  qualified: boolean;
-  attempts: number;
+  user_id: string; username: string; best_xp: number;
+  best_score: number; qualified: boolean; attempts: number;
 };
 
 export async function getLeaderboard(itemId: string): Promise<LeaderboardRow[]> {
   try {
-    const res = await databases.listDocuments(DB_ID, ATTEMPTS_COL, [
-      Query.equal("item_id", itemId),
-      Query.orderDesc("xp_earned"),
-      Query.limit(100),
-    ]);
-
-    // Collapse to best attempt per user client-side
+    const snap = await getDocs(query(
+      collection(getFirebaseDb(), "memoriq_attempts"),
+      where("item_id", "==", itemId),
+      orderBy("xp_earned", "desc"),
+      limit(100)
+    ));
     const byUser = new Map<string, LeaderboardRow>();
-    for (const doc of res.documents) {
-      const d = doc as unknown as {
-        user_id: string; xp_earned: number; score_pct: number; qualified: boolean;
-      };
-      const existing = byUser.get(d.user_id);
-      if (!existing || d.xp_earned > existing.best_xp) {
-        byUser.set(d.user_id, {
-          user_id: d.user_id,
-          username: "Anonymous",
-          best_xp: d.xp_earned,
-          best_score: d.score_pct,
-          qualified: d.qualified,
-          attempts: (existing?.attempts ?? 0) + 1,
+    for (const d of snap.docs) {
+      const data = d.data();
+      const existing = byUser.get(data.user_id);
+      if (!existing || data.xp_earned > existing.best_xp) {
+        byUser.set(data.user_id, {
+          user_id: data.user_id, username: "Anonymous",
+          best_xp: data.xp_earned, best_score: data.score_pct,
+          qualified: data.qualified, attempts: (existing?.attempts ?? 0) + 1,
         });
-      } else {
-        existing.attempts += 1;
-      }
+      } else { existing.attempts += 1; }
     }
-
-    // Fetch usernames
     const rows = Array.from(byUser.values()).sort((a, b) => b.best_xp - a.best_xp).slice(0, 20);
-    const userIds = rows.map((r) => r.user_id);
-    if (userIds.length) {
-      const profiles = await databases.listDocuments(DB_ID, PROFILES_COL, [
-        Query.equal("user_id", userIds),
-        Query.limit(20),
-      ]);
-      for (const p of profiles.documents) {
-        const prof = p as unknown as Profile;
-        const row = byUser.get(prof.user_id);
-        if (row && prof.username) row.username = prof.username;
-      }
-    }
-
+    await Promise.all(rows.map(async (row) => {
+      const prof = await getProfile(row.user_id);
+      if (prof?.username) row.username = prof.username;
+    }));
     return rows;
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
